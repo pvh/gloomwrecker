@@ -1,0 +1,35 @@
+Hi Peter!
+
+The app is written in Java, using my OSS library libgdx. You don't want to look at the web app, which is Java converted to JS using GWT. It's amazing that works at all! Plus the web app doesn't have network sync.
+
+The app uses binary for network serialization, so it is extremely prone to breakage -- literally any change in the format will break your client. However, there haven't been too many updates lately and you could always choose not to update (make sure everyone in your group turns off auto updates!). It is all hand written. Parsing it is finicky and of course has to be exactly right. If you want to give it a try, read on.
+
+Networking itself is done by my OSS lib, which adds a little bit around the binary payloads which are serialized with the code below:
+https://github.com/EsotericSoftware/tcpserver/
+
+The names of the messages sent with that lib are the strings here:
+gameState("s"), undo("u"), redo("r"), version("v"), rejected("r"), init("i")
+
+s is the entire game state. It will be the hardest to parse, but maybe you can just read the part you care about. It's written and read like this:
+http://n4te.com/x/7679-vtt6.txt
+readInt(boolean) is like this:
+http://n4te.com/x/6604-sFNE.txt
+readString is like:
+http://n4te.com/x/6605-qpSr.txt
+
+i is for 3rd party apps to set the initiative for a player. It is read like this:
+CharacterClass characterClass = CharacterClass.valueOf(input.readString());
+int init = input.readInt(true);
+The CharacterClass enum:
+http://n4te.com/x/391-9Oc7.txt
+
+u and r are for undo/redo. v reports the version. r is for the server to tell a client the game state they sent was rejected because someone else sent one first.
+
+I shared the above info with someone who wanted to use RFID tags for init, and that is why I added the "i" message. He got it working, check it out:
+Video: https://seafile.robingronberg.se/f/141cf4a780cb4981aa9c/
+Github: https://github.com/Gronis/gloomhaven-helper-rfid
+
+Please send me a video if you make something cool! :)
+
+Cheers,
+-Nate
