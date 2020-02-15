@@ -1,14 +1,28 @@
 #!/usr/bin/env python
 
+from rpi_ws281x import Color, PixelStrip, ws
+
+LED_COUNT = 298         # Number of LED pixels.
+LED_PIN = 12           # GPIO pin connected to the pixels (must support PWM!).
+LED_FREQ_HZ = 800000   # LED signal frequency in hertz (usually 800khz)
+LED_DMA = 10           # DMA channel to use for generating signal (try 10)
+LED_BRIGHTNESS = 8    # Set to 0 for darkest and 255 for brightest
+LED_INVERT = False     # True to invert the signal (when using NPN transistor level shift)
+LED_CHANNEL = 0
+LED_STRIP = ws.SK6812_STRIP_GRBW
+
+strip = PixelStrip(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL, LED_STRIP)
+strip.begin()
+
 import ghh
 import asyncio
 import math
 
-TCP_IP = '127.0.0.1'
+TCP_IP = '192.168.1.15'
 TCP_PORT = 58888
 
 # (the fifth player sits at the end of the table)
-SEATING_POSITIONS=[8, 50, 170, 220, 110]
+SEATING_POSITIONS=[8, 50, 150, 200, 105]
 
 CHARACTER_CLASS_ENUM = [
     "Escort",
@@ -35,24 +49,24 @@ CHARACTER_CLASS_ENUM = [
 ]
 
 CLASS_COLORS = {
-    "Scoundrel": (165, 209, 102),
-    "Brute": (78, 127, 193),
-    "Cragheart": (137, 149, 56),
-    "Mindthief": (100, 124, 157),
-    "Spellweaver": (181, 120, 179),
-    "Tinkerer": (197, 181, 141),
-    "TwoMinis": (173, 116, 92),
-    "Lightning": (209, 78, 78),
-    "AngryFace": (56, 195, 241),
-    "Triangles": (158, 158, 158),
-    "Moon": (158, 159, 205),
-    "ChuluFace": (116, 199, 187),
-    "TrippleArrow": (217, 137, 38),
-    "Saw": (223, 221, 202),
-    "MusicNote": (223, 126, 122),
-    "Circles": (235, 111, 163),
-    "Sun": (243, 195, 57),
-    "value20": (255, 1, 1),
+    "Scoundrel": (165, 209, 102, 0),
+    "Brute": (78, 127, 193, 0),
+    "Cragheart": (137, 149, 56, 0),
+    "Mindthief": (100, 124, 157, 0),
+    "Spellweaver": (181, 120, 179, 0),
+    "Tinkerer": (197, 181, 141, 0),
+    "TwoMinis": (173, 116, 92, 0),
+    "Lightning": (209, 78, 78, 0),
+    "AngryFace": (56, 195, 241, 0),
+    "Triangles": (158, 158, 158, 0),
+    "Moon": (158, 159, 205, 0),
+    "ChuluFace": (116, 199, 187, 0),
+    "TrippleArrow": (217, 137, 38, 0),
+    "Saw": (223, 221, 202, 0),
+    "MusicNote": (223, 126, 122, 0),
+    "Circles": (235, 111, 163, 0),
+    "Sun": (243, 195, 57, 0),
+    "value20": (255, 1, 1, 0),
 }
 
 STATUS_COLORS = {
@@ -93,8 +107,8 @@ def render_player(player):
     yield (0, 0, 0)
 
     # health bar rendering
-    healthy_color = (255, 0, 0)
-    ouchie_color = (1, 1, 1)
+    healthy_color = (0, 255, 0, 0)
+    ouchie_color = (255, 0, 0, 0)
     lights = math.ceil(float(hp) / float(hp_max) * HEALTH_BAR_WIDTH)
     for i in range(HEALTH_BAR_WIDTH):
         if i < lights:
@@ -102,38 +116,48 @@ def render_player(player):
         else:
             yield ouchie_color 
 
-    yield (0, 0, 0)
+    yield (0, 0, 0, 0)
 
     for i in range(0, COLOR_BAR_WIDTH):
         yield color
 
-ELEMENT_START_POINT = 260
+ELEMENT_START_POINT = 250
 def render_elements(game_state):
     current_led = ELEMENT_START_POINT
+    strip.setPixelColor(current_led, Color(0, 0, 0, 255))
+    current_led = current_led + 1
+    strip.setPixelColor(current_led, Color(0, 0, 0, 255))
+    current_led = current_led + 1
+
     for color in render_element("fire", game_state.fire):
-        print(current_led, color)
+        strip.setPixelColor(current_led, Color(*color))
         current_led = current_led + 1
 
     for color in render_element("ice", game_state.ice):
-        print(current_led, color)
+        strip.setPixelColor(current_led, Color(*color))
         current_led = current_led + 1
 
     for color in render_element("air", game_state.air):
-        print(current_led, color)
+        strip.setPixelColor(current_led, Color(*color))
         current_led = current_led + 1
 
     for color in render_element("earth", game_state.earth):
-        print(current_led, color)
+        strip.setPixelColor(current_led, Color(*color))
         current_led = current_led + 1
 
     for color in render_element("light", game_state.light):
-        print(current_led, color)
+        strip.setPixelColor(current_led, Color(*color))
         current_led = current_led + 1
 
     for color in render_element("dark", game_state.dark):
-        print(current_led, color)
+        strip.setPixelColor(current_led, Color(*color))
         current_led = current_led + 1
     
+    strip.setPixelColor(current_led, Color(0, 0, 0, 255))
+    current_led = current_led + 1
+    strip.setPixelColor(current_led, Color(0, 0, 0, 255))
+    current_led = current_led + 1
+
 ELEMENT_COLORS = {
     "fire": (226, 66, 30),
     "ice": (85, 200, 239), 
@@ -158,6 +182,7 @@ def render_element(element, intensity):
         yield color
         yield color
         yield color
+    yield (0, 0, 0, 0)
 
 async def on_game_state(message_number, game_state):
     render_elements(game_state)
@@ -179,8 +204,10 @@ async def on_game_state(message_number, game_state):
             
             current_led = SEATING_POSITIONS[table_state["seating_positions"][character_class]]
             for color in player_render:
-                print(current_led, color)
+                strip.setPixelColor(current_led, Color(*color))
                 current_led = current_led + 1
+
+            strip.show()
 
 table_state = {
     "next_seat": 0,
