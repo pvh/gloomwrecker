@@ -6,7 +6,7 @@ LED_COUNT = 298         # Number of LED pixels.
 LED_PIN = 12           # GPIO pin connected to the pixels (must support PWM!).
 LED_FREQ_HZ = 800000   # LED signal frequency in hertz (usually 800khz)
 LED_DMA = 10           # DMA channel to use for generating signal (try 10)
-LED_BRIGHTNESS = 8    # Set to 0 for darkest and 255 for brightest
+LED_BRIGHTNESS = 16    # Set to 0 for darkest and 255 for brightest
 LED_INVERT = False     # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL = 0
 LED_STRIP = ws.SK6812_STRIP_GRBW
@@ -22,7 +22,7 @@ TCP_IP = '192.168.1.15'
 TCP_PORT = 58888
 
 # (the fifth player sits at the end of the table)
-SEATING_POSITIONS=[8, 50, 150, 200, 105]
+SEATING_POSITIONS=[8, 50, 155, 200, 105]
 
 CHARACTER_CLASS_ENUM = [
     "Escort",
@@ -81,14 +81,17 @@ STATUS_COLORS = {
 "Regenerate": (200, 59, 150),
 }
 
+GAMMA = list(map(lambda x: round(((x/255.0)**2.5)*255), range(0, 256)))
+
 # players get about 30px to represent them
 # *********|*********|*********|
 # --- HHHHHHHHHHHHHHHH SSSSS ---
 
 PLAYER_WIDTH = 30
 COLOR_BAR_WIDTH = 4
+INITIATIVE_WIDTH = 3
 START_OF_HEALTH = COLOR_BAR_WIDTH + 1
-HEALTH_BAR_WIDTH = 17
+HEALTH_BAR_WIDTH = 14
 END_OF_HEALTH = START_OF_HEALTH + HEALTH_BAR_WIDTH
 
 def render_player(player):
@@ -100,11 +103,21 @@ def render_player(player):
     hp_max = player.hp_max
 
 
+    initiative = player.initiative
+    waiting_color = (0, 0, 128, 0)
+    ready_color = (0, 255, 0, 255)
+    initiative_color = waiting_color if (initiative == 0) else ready_color
+
+
     for i in range(0, COLOR_BAR_WIDTH):
         yield color
 
+    for i in range(0, INITIATIVE_WIDTH):
+        yield initiative_color
+
     # mind the gap
     yield (0, 0, 0)
+
 
     # health bar rendering
     healthy_color = (0, 255, 0, 0)
@@ -118,44 +131,65 @@ def render_player(player):
 
     yield (0, 0, 0, 0)
 
+    for i in range(0, INITIATIVE_WIDTH):
+        yield initiative_color
+
     for i in range(0, COLOR_BAR_WIDTH):
         yield color
+
+def set_pixel_color(current_led, color):
+    gamma_corrected = map(lambda x: GAMMA[x], color)
+    strip.setPixelColor(current_led, Color(*gamma_corrected))
+    
 
 ELEMENT_START_POINT = 250
 def render_elements(game_state):
     current_led = ELEMENT_START_POINT
-    strip.setPixelColor(current_led, Color(0, 0, 0, 255))
+
+    set_pixel_color(current_led, (0, 0, 0, 32))
     current_led = current_led + 1
-    strip.setPixelColor(current_led, Color(0, 0, 0, 255))
+    set_pixel_color(current_led, (0, 0, 0, 64))
+    current_led = current_led + 1
+    set_pixel_color(current_led, (0, 0, 0, 128))
+    current_led = current_led + 1
+    set_pixel_color(current_led, (0, 0, 0, 255))
+    current_led = current_led + 1
+    set_pixel_color(current_led, (0, 0, 0, 0))
     current_led = current_led + 1
 
-    for color in render_element("fire", game_state.fire):
-        strip.setPixelColor(current_led, Color(*color))
-        current_led = current_led + 1
-
-    for color in render_element("ice", game_state.ice):
-        strip.setPixelColor(current_led, Color(*color))
-        current_led = current_led + 1
-
-    for color in render_element("air", game_state.air):
-        strip.setPixelColor(current_led, Color(*color))
-        current_led = current_led + 1
-
-    for color in render_element("earth", game_state.earth):
-        strip.setPixelColor(current_led, Color(*color))
+    for color in render_element("dark", game_state.dark):
+        set_pixel_color(current_led, color)
         current_led = current_led + 1
 
     for color in render_element("light", game_state.light):
-        strip.setPixelColor(current_led, Color(*color))
+        set_pixel_color(current_led, color)
         current_led = current_led + 1
 
-    for color in render_element("dark", game_state.dark):
-        strip.setPixelColor(current_led, Color(*color))
+    for color in render_element("earth", game_state.earth):
+        set_pixel_color(current_led, color)
         current_led = current_led + 1
-    
-    strip.setPixelColor(current_led, Color(0, 0, 0, 255))
+
+    for color in render_element("air", game_state.air):
+        set_pixel_color(current_led, color)
+        current_led = current_led + 1
+
+    for color in render_element("ice", game_state.ice):
+        set_pixel_color(current_led, color)
+        current_led = current_led + 1
+
+    for color in render_element("fire", game_state.fire):
+        set_pixel_color(current_led, color)
+        current_led = current_led + 1
+
+    set_pixel_color(current_led, (0, 0, 0, 0))
     current_led = current_led + 1
-    strip.setPixelColor(current_led, Color(0, 0, 0, 255))
+    set_pixel_color(current_led, (0, 0, 0, 255))
+    current_led = current_led + 1
+    set_pixel_color(current_led, (0, 0, 0, 128))
+    current_led = current_led + 1
+    set_pixel_color(current_led, (0, 0, 0, 64))
+    current_led = current_led + 1
+    set_pixel_color(current_led, (0, 0, 0, 32))
     current_led = current_led + 1
 
 ELEMENT_COLORS = {
@@ -195,16 +229,25 @@ async def on_game_state(message_number, game_state):
             global table_state
 
             character_class = player.character_class
-            
+
             if not (character_class in table_state["seating_positions"]):
-                table_state["seating_positions"][character_class] = table_state["next_seat"]
-                table_state["next_seat"] = table_state["next_seat"] + 1
+                # table_state["seating_positions"][character_class] = table_state["next_seat"]
+                # table_state["next_seat"] = table_state["next_seat"] + 1
+                if character_class == ghh.CharacterClass.Triangles:
+                    table_state["seating_positions"][character_class] = 2
+                elif character_class == ghh.CharacterClass.Sun:
+                    table_state["seating_positions"][character_class] = 3
+                elif character_class == ghh.CharacterClass.AngryFace:
+                    table_state["seating_positions"][character_class] = 0
+                else:
+                    table_state["seating_positions"][character_class] = 1
+
 
             player_render = render_player(player)
             
             current_led = SEATING_POSITIONS[table_state["seating_positions"][character_class]]
             for color in player_render:
-                strip.setPixelColor(current_led, Color(*color))
+                set_pixel_color(current_led, color)
                 current_led = current_led + 1
 
             strip.show()
