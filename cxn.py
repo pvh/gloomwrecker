@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from itertools import chain
 from rpi_ws281x import Color, PixelStrip, ws
 
 LED_COUNT = 298         # Number of LED pixels.
@@ -141,56 +142,37 @@ def set_pixel_color(current_led, color):
     gamma_corrected = map(lambda x: GAMMA[x], color)
     strip.setPixelColor(current_led, Color(*gamma_corrected))
     
+def paint_starting_at(current_led):
+    next_led = current_led
+
+    def set_next_led(color):
+        nonlocal next_led
+        curr = next_led
+        next_led += 1
+        set_pixel_color(next_led, color)
+    return set_next_led
 
 ELEMENT_START_POINT = 250
 def render_elements(game_state):
-    current_led = ELEMENT_START_POINT
+    set_next_led = paint_starting_at(ELEMENT_START_POINT)
 
-    set_pixel_color(current_led, (0, 0, 0, 32))
-    current_led = current_led + 1
-    set_pixel_color(current_led, (0, 0, 0, 64))
-    current_led = current_led + 1
-    set_pixel_color(current_led, (0, 0, 0, 128))
-    current_led = current_led + 1
-    set_pixel_color(current_led, (0, 0, 0, 255))
-    current_led = current_led + 1
-    set_pixel_color(current_led, (0, 0, 0, 0))
-    current_led = current_led + 1
+    banner_w = [ 32, 64, 128, 255, 0 ]
+    for item in list(banner_w):
+        set_next_led((0, 0, 0, banner_w))
 
-    for color in render_element("dark", game_state.dark):
-        set_pixel_color(current_led, color)
-        current_led = current_led + 1
+    for color in chain(
+        render_element("dark", game_state.dark),
+        render_element("light", game_state.light),
+        render_element("earth", game_state.earth),
+        render_element("air", game_state.air),
+        render_element("ice", game_state.ice),
+        render_element("fire", game_state.fire)
+    ):
+        set_next_led(color)
 
-    for color in render_element("light", game_state.light):
-        set_pixel_color(current_led, color)
-        current_led = current_led + 1
+    for item in list(reversed(banner_w)):
+        set_next_led((0, 0, 0, banner_w))
 
-    for color in render_element("earth", game_state.earth):
-        set_pixel_color(current_led, color)
-        current_led = current_led + 1
-
-    for color in render_element("air", game_state.air):
-        set_pixel_color(current_led, color)
-        current_led = current_led + 1
-
-    for color in render_element("ice", game_state.ice):
-        set_pixel_color(current_led, color)
-        current_led = current_led + 1
-
-    for color in render_element("fire", game_state.fire):
-        set_pixel_color(current_led, color)
-        current_led = current_led + 1
-
-    set_pixel_color(current_led, (0, 0, 0, 0))
-    current_led = current_led + 1
-    set_pixel_color(current_led, (0, 0, 0, 255))
-    current_led = current_led + 1
-    set_pixel_color(current_led, (0, 0, 0, 128))
-    current_led = current_led + 1
-    set_pixel_color(current_led, (0, 0, 0, 64))
-    current_led = current_led + 1
-    set_pixel_color(current_led, (0, 0, 0, 32))
-    current_led = current_led + 1
 
 ELEMENT_COLORS = {
     "fire": (226, 66, 30),
@@ -244,13 +226,14 @@ async def on_game_state(message_number, game_state):
 
 
             player_render = render_player(player)
-            
-            current_led = SEATING_POSITIONS[table_state["seating_positions"][character_class]]
-            for color in player_render:
-                set_pixel_color(current_led, color)
-                current_led = current_led + 1
 
-            strip.show()
+            player_start_led = SEATING_POSITIONS[table_state["seating_positions"][character_class]]
+            set_next_led = paint_starting_at(player_start_led)
+
+            for color in player_render:
+                set_next_led(color)
+
+    strip.show()
 
 table_state = {
     "next_seat": 0,
