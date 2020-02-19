@@ -250,7 +250,7 @@ async def on_game_state(message_number, game_state):
                 set_pixel_color(current_led, color)
                 current_led = current_led + 1
 
-            strip.show()
+    strip.show()
 
 table_state = {
     "next_seat": 0,
